@@ -1,9 +1,9 @@
 # Fetching GitHub issue data
 
 ## TODO
-- fetch user information
-- fix flitering criteria for low star repos (no bug issues)
-- refactor
+- manually validate some of the data
+- filter issues more (for min comments)
+- create dataset from collected data
 
 ## Install + Run
 
