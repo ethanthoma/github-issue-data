@@ -3,17 +3,13 @@ package github
 import (
 	"encoding/json"
 	"fmt"
-    "strings"
+
+	issuequery "github.com/ethanthoma/github-issue-data/pkg/issue-query"
+	"github.com/ethanthoma/github-issue-data/pkg/search"
 )
 
-func (client *Client) FetchRepos(searchParams map[string]string, perPage int, page int) ([]Repo, int, bool, error) {
-    var pairs []string
-    for key, value := range searchParams {
-        pairs = append(pairs, key+":"+value)
-    }
-    params := strings.Join(pairs, "+")
-
-    query := fmt.Sprintf("%s&sort=stars&order=desc&per_page=%d&page=%d", params, perPage, page)
+func (client *Client) FetchRepos(search *search.Search, perPage int, page int) ([]Repo, int, bool, error) {
+    query := fmt.Sprintf("%s&sort=stars&order=desc&per_page=%d&page=%d", search.ToString(), perPage, page)
     url := fmt.Sprintf("https://api.github.com/search/repositories?q=%s", query)
     resp, err := client.fetch(url)
     if err != nil {
@@ -52,14 +48,8 @@ func (client *Client) UserIsCollaborator(repoFullname string, username string) (
     return resp.StatusCode == 204, nil
 }
 
-func (client *Client) FetchIssues(repoFullname string, queryParams map[string]string) ([]Issue, error) {
-    var pairs []string
-    for key, value := range queryParams {
-        pairs = append(pairs, key+"="+value)
-    }
-    params := strings.Join(pairs, "&")
-
-    url := fmt.Sprintf("https://api.github.com/repos/%s/issues?%s", repoFullname, params)
+func (client *Client) FetchIssues(repoFullname string, issueQuery *issuequery.IssueQuery) ([]Issue, error) {
+    url := fmt.Sprintf("https://api.github.com/repos/%s/issues?%s", repoFullname, issueQuery.ToString())
     resp, err := client.fetch(url)
     if err != nil {
         return nil, err

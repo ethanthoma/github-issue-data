@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
-    "os"
+	"os"
+
 	"github.com/ethanthoma/github-issue-data/pkg"
+	issuequery "github.com/ethanthoma/github-issue-data/pkg/issue-query"
+	"github.com/ethanthoma/github-issue-data/pkg/search"
 )
 
 func main() {
@@ -11,32 +14,31 @@ func main() {
 
     githubClient := github.NewClient(token)
 
-    _ = githubClient
+    searchParams := search.NewSearch(
+        search.Created("<=2019-09-30"),
+        search.Is("public"),
+        search.Fork(false),
+        search.Mirror(false),
+        search.Stars("0..1000"),
+        search.Template(false),
+    )
 
-    searchParameters := map[string]string{
-        "created":  "<=2019-09-30",
-        "is":       "public",
-        "fork":     "false",
-        "mirror":   "false",
-        "stars":    "0..1000",
-        "template": "false",
-    }
     perPage := 10
     page := 1
 
-    repos, _, _, err := githubClient.FetchRepos(searchParameters, perPage, page)
+    repos, _, _, err := githubClient.FetchRepos(searchParams, perPage, page)
     if err != nil {
 
         fmt.Println("Error on fetching repos.\n[ERROR] -", err)
         panic(err)
     }
 
-    issueQueryParams := map[string]string{
-        "labels":   "bug",
-        "state":    "closed",
-        "page":     "1",
-        "per_page": "10",
-    }
+    issueQueryParams := issuequery.NewIssueQuery(
+        issuequery.Labels("bug"),
+        issuequery.State("closed"),
+        issuequery.Page(1),
+        issuequery.PerPage(10),
+    )
 
     for _, repo := range repos {
         issues, err := githubClient.FetchIssues(repo.FullName, issueQueryParams)
