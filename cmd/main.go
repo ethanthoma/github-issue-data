@@ -3,75 +3,124 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ethanthoma/github-issue-data/pkg"
-	issuequery "github.com/ethanthoma/github-issue-data/pkg/issue-query"
-	"github.com/ethanthoma/github-issue-data/pkg/search"
+	"github.com/ethanthoma/github-issue-data/pkg/repos"
 )
 
 func main() {
-    token := os.Getenv("GITHUB_TOKEN")
+	token := os.Getenv("GITHUB_TOKEN")
 
-    githubClient := github.NewClient(token)
+	client := github.NewClient(token)
 
-    searchParams := search.NewSearch(
-        search.Created("<=2019-09-30"),
-        search.Is("public"),
-        search.Fork(false),
-        search.Mirror(false),
-        search.Stars("0..1000"),
-        search.Template(false),
-    )
+	repos, err := getRepos(client)
+	if err != nil {
+		fmt.Println("Error on getting batch.\n[ERROR] -", err)
+		panic(err)
+	}
+	github.SaveToCSV(repos, "repos.csv")
 
-    perPage := 10
-    page := 1
+	os.Exit(0)
+}
 
-    repos, _, _, err := githubClient.FetchRepos(searchParams, perPage, page)
-    if err != nil {
+func getRepos(client *github.Client) (*[]github.Repo, error) {
+	defaultSearchParams := getSearchFilter()
 
-        fmt.Println("Error on fetching repos.\n[ERROR] -", err)
-        panic(err)
-    }
+	populationSize, err := getPopulationSize(client, defaultSearchParams.Copy())
+	if err != nil {
+		fmt.Println("Error on getting population size.\n[ERROR] -", err)
+		panic(err)
+	}
 
-    issueQueryParams := issuequery.NewIssueQuery(
-        issuequery.Labels("bug"),
-        issuequery.State("closed"),
-        issuequery.Page(1),
-        issuequery.PerPage(10),
-    )
+	populationIds := make(map[int]bool)
+	population := make([]github.Repo, populationSize)
 
-    for _, repo := range repos {
-        issues, err := githubClient.FetchIssues(repo.FullName, issueQueryParams)
-        if err != nil {
-            fmt.Println("Error on fetching issues for ", repo.FullName, ".\n[ERROR] -", err)
-            panic(err)
-        }
+	perPage := 100
+	minStars := 100
+	defaultSearchParams.Set(repos.Stars(repos.Int{}.Min(minStars)))
 
-        fmt.Println("Number of issues for", repo.FullName, "is", len(issues))
+	then := time.Now()
+	for page, index := 0, 0; index < populationSize; page++ {
+		if page == 10 {
+			page = 0
+			minStars = population[index-1].Stars
+			defaultSearchParams.Set(repos.Stars(repos.Int{}.Min(minStars)))
+			fmt.Println("Progress: ", index+1, "/", populationSize)
+			fmt.Println("minStars: ", minStars)
+		}
 
+		now := time.Now()
+		diff := now.Sub(then)
+		if diff.Seconds() < 2 {
+			time.Sleep(diff)
+		}
 
-        for _, issue := range issues {
-            fmt.Println("Number of comments in issue ID#", issue.ID, "is", issue.Comments)
+		repos, _, incomplete, err := client.FetchRepos(repos.NewFetchReposParams(
+			repos.SetSearchParams(defaultSearchParams),
+			repos.SetPage(page),
+			repos.SetPerPage(perPage),
+			repos.SetSort(repos.SortByStars()),
+			repos.SetOrder(repos.Asc()),
+		))
+		if err != nil {
+			fmt.Println("Error on fetching batch.\n[ERROR] -", err)
+			return nil, err
+		}
+		then = now
 
-            if issue.Comments == 0 {
-                fmt.Println("Skipping...")
-                continue
-            }
+		if incomplete {
+			fmt.Println("[WARNING] incomplete page.")
+		}
 
-            comments, err := githubClient.FetchCommentsForIssue(repo.FullName, issue.Number)
-            if err != nil {
-                fmt.Println("Error on fetching comments for issue.\n[ERROR] -", err)
-                panic(err)
-            }
+		for _, repo := range repos {
+			if populationIds[repo.ID] {
+				continue
+			}
 
-            for _, comment := range comments {
-                isCollab, err := githubClient.UserIsCollaborator(repo.FullName, comment.User.Login)
-                if err != nil {
-                    fmt.Println("Error on fetching user for comment.\n[ERROR] -", err)
-                    panic(err)
-                }
-                fmt.Println("User:", comment.User.Login, "User is collab:", isCollab, "Text:", comment.Body)
-            }
-        }
-    }
+			population[index] = repo
+			populationIds[repo.ID] = true
+			index++
+		}
+		break
+	}
+
+	fmt.Println("Progress: ", populationSize, "/", populationSize)
+
+	return &population, nil
+}
+
+func getSearchFilter() *repos.SearchParams {
+	created, _ := time.Parse("2006-01-02", "2019-09-30")
+	pushed := created.AddDate(0, 6, 0)
+	searchFilter := repos.NewSearchParams(
+		repos.Query("library"),
+		repos.Created(repos.Time{}.Max(created)),
+		repos.Is(repos.Public()),
+		repos.Mirror(false),
+		repos.Template(false),
+		// API returns incorrect max if min is less than 20
+		repos.Stars(repos.Int{}.Min(100)),
+		repos.Pushed(repos.Time{}.Min(pushed)),
+	)
+
+	return searchFilter
+}
+
+func getPopulationSize(client *github.Client, searchParams *repos.SearchParams) (int, error) {
+	_, populationSize, _, err := client.FetchRepos(repos.NewFetchReposParams(
+		repos.SetSearchParams(searchParams),
+		repos.SetPage(1),
+		repos.SetPerPage(1),
+		repos.SetSort(repos.SortByStars()),
+	))
+
+	if err != nil {
+		fmt.Println("Error on getting population size.\n[ERROR] -", err)
+		return 0, err
+	}
+
+	fmt.Println("population size:", populationSize)
+
+	return populationSize, nil
 }
