@@ -19,9 +19,7 @@ func main() {
 		fmt.Println("Error on getting batch.\n[ERROR] -", err)
 		panic(err)
 	}
-	github.SaveToCSV(repos, "repos.csv")
-
-	os.Exit(0)
+	github.SaveToCSV(repos, "data/repos.csv")
 }
 
 func getRepos(client *github.Client) (*[]github.Repo, error) {

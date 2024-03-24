@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	issuequery "github.com/ethanthoma/github-issue-data/pkg/issue-query"
+	issuequery "github.com/ethanthoma/github-issue-data/pkg/issue"
 	"github.com/ethanthoma/github-issue-data/pkg/repos"
 )
 
