@@ -7,10 +7,22 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/ethanthoma/github-issue-data/pkg"
 	issuesquery "github.com/ethanthoma/github-issue-data/pkg/issue"
 )
+
+type CommentData struct {
+	IssueID   int
+	CommentID int
+	AuthorID  int
+	Author    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Text      string
+	Type      string
+}
 
 func main() {
 	token := os.Getenv("GITHUB_TOKEN")
@@ -19,23 +31,20 @@ func main() {
 
 	reposFilepath := "data/repos.csv"
 
-	issues, err := getIssues(client, reposFilepath, 500, 13_611, rand.NewPCG(420, 69))
+	comments, err := getComments(client, reposFilepath, 500, 13_611, rand.NewPCG(420, 69))
 	if err != nil {
-		fmt.Println("Error on getting issues.\n[ERROR] -", err)
-		panic(err)
+		fmt.Println("Error on getting comments.\n[ERROR] -", err)
 	}
 
-	fmt.Println("Number of issues:", len(*issues))
+	fmt.Println("Number of comments:", len(*comments))
 
-	github.SaveToCSV(issues, "data/issues.csv")
+	github.SaveToCSV(comments, "data/comments-"+fmt.Sprint(len(*comments))+".csv")
 }
 
-func getIssues(client *github.Client, reposFilepath string, sampleSize int, populationSize int, seed *rand.PCG) (*[]github.Issue, error) {
-	var dataset []github.Issue
+func getComments(client *github.Client, reposFilepath string, sampleSize int, populationSize int, seed *rand.PCG) (*[]CommentData, error) {
+	var dataset []CommentData
 
 	indices := *getIndices(sampleSize, populationSize, seed)
-
-	fmt.Println(indices)
 
 	file, err := os.Open(reposFilepath)
 	if err != nil {
@@ -59,8 +68,7 @@ func getIssues(client *github.Client, reposFilepath string, sampleSize int, popu
 
 	lines := 0
 	for i, index := range indices {
-		fmt.Println("Repos parsed:", i, "/", sampleSize)
-
+		parsedComments := len(dataset)
 		for ; ; lines++ {
 			record, err := reader.Read()
 			if err != nil {
@@ -95,9 +103,9 @@ func getIssues(client *github.Client, reposFilepath string, sampleSize int, popu
 			dataset = append(dataset, (*issues)...)
 			break
 		}
-	}
 
-	fmt.Println("Repos parsed:", sampleSize, "/", sampleSize)
+		fmt.Println("Repos parsed:", i+1, "/", sampleSize, "| Comments parsed:", len(dataset)-parsedComments)
+	}
 
 	return &dataset, nil
 }
@@ -125,8 +133,8 @@ func getIndices(sampleSize int, populationSize int, seed *rand.PCG) *[]int {
 	return &indices
 }
 
-func filterIssues(client *github.Client, repo *github.Repo) (*[]github.Issue, error) {
-	var filteredIssues []github.Issue
+func filterIssues(client *github.Client, repo *github.Repo) (*[]CommentData, error) {
+	var data []CommentData
 
 	query := issuesquery.NewIssueQuery(
 		issuesquery.State(issuesquery.Closed()),
@@ -149,10 +157,53 @@ func filterIssues(client *github.Client, repo *github.Repo) (*[]github.Issue, er
 		for _, issue := range issues {
 			year := issue.CreatedAt.Year()
 			if year >= 2016 && year <= 2019 && issue.PullRequest == nil {
-				filteredIssues = append(filteredIssues, issue)
+				comments, err := convertIssueToComments(client, repo, &issue)
+				if err != nil {
+					return nil, err
+				}
+				data = append(data, (*comments)...)
 			}
 		}
 	}
 
-	return &filteredIssues, nil
+	return &data, nil
+}
+
+func convertIssueToComments(client *github.Client, repo *github.Repo, issue *github.Issue) (*[]CommentData, error) {
+	var data []CommentData
+
+	comments, err := client.FetchCommentsForIssue(repo.FullName, issue.Number)
+	if err != nil {
+		fmt.Println("Failed to fetch comments for", repo.FullName, ":", issue.ID)
+		return nil, err
+	}
+
+	data = append(data, CommentData{
+		IssueID:   issue.ID,
+		CommentID: -1,
+		AuthorID:  issue.User.ID,
+		Author:    issue.User.Login,
+		CreatedAt: issue.CreatedAt,
+		UpdatedAt: issue.UpdatedAt,
+		Text:      issue.Title + " " + issue.Body,
+		Type:      issue.Type,
+	})
+
+	for _, comment := range comments {
+		year := comment.CreatedAt.Year()
+		if year >= 2016 && year <= 2019 {
+			data = append(data, CommentData{
+				IssueID:   issue.ID,
+				CommentID: comment.ID,
+				AuthorID:  comment.User.ID,
+				Author:    comment.User.Login,
+				CreatedAt: comment.CreatedAt,
+				UpdatedAt: comment.UpdatedAt,
+				Text:      comment.Body,
+				Type:      comment.Type,
+			})
+		}
+	}
+
+	return &data, nil
 }

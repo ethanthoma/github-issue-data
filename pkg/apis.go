@@ -52,18 +52,15 @@ func (client Client) FetchCommentsForIssue(repoFullname string, issueNumber int)
 	}
 
 	var comments []Comment
-	json.Unmarshal(resp.Body, &comments)
-	return comments, nil
+	err = json.Unmarshal(resp.Body, &comments)
+	return comments, err
 }
 
 func (client *Client) UserIsCollaborator(repoFullname string, username string) (bool, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/collaborators/%s", repoFullname, username)
 	resp, err := client.fetch(url)
-	if err != nil {
-		return false, err
-	}
 
-	return resp.StatusCode == 204, nil
+	return resp.StatusCode == 204, err
 }
 
 func (client *Client) FetchIssues(repoFullname string, issueQuery *issuequery.IssueQuery) ([]Issue, error) {
@@ -74,6 +71,7 @@ func (client *Client) FetchIssues(repoFullname string, issueQuery *issuequery.Is
 	}
 
 	var issues []Issue
-	json.Unmarshal(resp.Body, &issues)
-	return issues, nil
+	err = json.Unmarshal(resp.Body, &issues)
+
+	return issues, err
 }
