@@ -25,6 +25,8 @@ func main() {
 		panic(err)
 	}
 
+	fmt.Println("Number of issues:", len(*issues))
+
 	github.SaveToCSV(issues, "data/issues.csv")
 }
 
@@ -57,7 +59,6 @@ func getIssues(client *github.Client, reposFilepath string, sampleSize int, popu
 
 	lines := 0
 	for i, index := range indices {
-
 		fmt.Println("Repos parsed:", i, "/", sampleSize)
 
 		for ; ; lines++ {
@@ -95,6 +96,8 @@ func getIssues(client *github.Client, reposFilepath string, sampleSize int, popu
 			break
 		}
 	}
+
+	fmt.Println("Repos parsed:", sampleSize, "/", sampleSize)
 
 	return &dataset, nil
 }
