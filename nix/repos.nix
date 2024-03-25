@@ -12,9 +12,9 @@
 }:
 
 buildGoApplication {
-    pname = "cmd";
-    version = "0.1";
+    pname = "github.com/ethanthoma/github-issue-data";
+    version = "1.0.0";
     pwd = ../.;
     src = ../.;
-    modules = ../gomod2nix.toml;
+    subPackages = [ "./cmd/repos/repos.go" ];
 }
