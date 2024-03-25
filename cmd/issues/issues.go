@@ -36,13 +36,14 @@ func main() {
 		fmt.Println("Error on getting comments.\n[ERROR] -", err)
 	}
 
-	fmt.Println("Number of comments:", len(*comments))
-
-	github.SaveToCSV(comments, "data/comments-"+fmt.Sprint(len(*comments))+".csv")
+	if comments != nil {
+		fmt.Println("Number of comments:", len(*comments))
+		github.SaveToCSV(comments, "data/comments-"+fmt.Sprint(len(*comments))+".csv")
+	}
 }
 
 func getComments(client *github.Client, reposFilepath string, sampleSize int, populationSize int, seed *rand.PCG) (*[]CommentData, error) {
-	var dataset []CommentData
+	dataset := []CommentData{}
 
 	indices := *getIndices(sampleSize, populationSize, seed)
 
@@ -97,7 +98,7 @@ func getComments(client *github.Client, reposFilepath string, sampleSize int, po
 			issues, err := filterIssues(client, &repo)
 			if err != nil {
 				fmt.Println("Failed to fetch issues for", repo.FullName, ":", err)
-				return nil, err
+				return &dataset, err
 			}
 
 			dataset = append(dataset, (*issues)...)
@@ -134,7 +135,7 @@ func getIndices(sampleSize int, populationSize int, seed *rand.PCG) *[]int {
 }
 
 func filterIssues(client *github.Client, repo *github.Repo) (*[]CommentData, error) {
-	var data []CommentData
+	data := []CommentData{}
 
 	query := issuesquery.NewIssueQuery(
 		issuesquery.State(issuesquery.Closed()),
@@ -170,7 +171,7 @@ func filterIssues(client *github.Client, repo *github.Repo) (*[]CommentData, err
 }
 
 func convertIssueToComments(client *github.Client, repo *github.Repo, issue *github.Issue) (*[]CommentData, error) {
-	var data []CommentData
+	data := []CommentData{}
 
 	comments, err := client.FetchCommentsForIssue(repo.FullName, issue.Number)
 	if err != nil {

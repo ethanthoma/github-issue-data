@@ -15,7 +15,7 @@ type Client struct {
 }
 
 func NewClient(token string) *Client {
-	limiter := rate.NewLimiter(rate.Limit(5000./(60.*60.)), 1)
+	limiter := rate.NewLimiter(rate.Limit(5000./(60.*60.)+0.01), 1)
 
 	return &Client{
 		httpClient: &http.Client{},

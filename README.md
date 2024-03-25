@@ -3,9 +3,9 @@
 ## Done
 - fetching filtered repos (13k)
 - sampling repos (500) and fetching issues (8k)
+- fetch comments for issues (28k)
 
 ## TODO
-- fetch comments for issues
 - create dataset(s) from collected data
 
 ## Install + Run
