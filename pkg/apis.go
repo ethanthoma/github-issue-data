@@ -44,25 +44,6 @@ func (client *Client) FetchRepos(fetchReposParams *repos.FetchReposParams) ([]Re
 	return result.Items, result.TotalCount, result.IncompleteResults, err
 }
 
-func (client Client) FetchCommentsForIssue(repoFullname string, issueNumber int) ([]Comment, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/comments", repoFullname, issueNumber)
-	resp, err := client.fetch(url)
-	if err != nil {
-		return nil, err
-	}
-
-	var comments []Comment
-	err = json.Unmarshal(resp.Body, &comments)
-	return comments, err
-}
-
-func (client *Client) UserIsCollaborator(repoFullname string, username string) (bool, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/collaborators/%s", repoFullname, username)
-	resp, err := client.fetch(url)
-
-	return resp.StatusCode == 204, err
-}
-
 func (client *Client) FetchIssues(repoFullname string, issueQuery *issuequery.IssueQuery) ([]Issue, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/issues?%s", repoFullname, issueQuery.ToString())
 	resp, err := client.fetch(url)
@@ -73,5 +54,68 @@ func (client *Client) FetchIssues(repoFullname string, issueQuery *issuequery.Is
 	var issues []Issue
 	err = json.Unmarshal(resp.Body, &issues)
 
-	return issues, err
+	if err != nil {
+		print(string(resp.Body))
+		return nil, err
+	}
+
+	return issues, nil
+}
+
+func (client Client) FetchCommentsForIssue(repoFullname string, issueNumber int) ([]Comment, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/comments", repoFullname, issueNumber)
+	resp, err := client.fetch(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var comments []Comment
+	err = json.Unmarshal(resp.Body, &comments)
+
+	if err != nil {
+		print(string(resp.Body))
+		return nil, err
+	}
+
+	return comments, nil
+}
+
+func (client *Client) FetchStarsForRepo(repoFullname string, perPage, page int) ([]Star, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/stargazers?per_page=%d&page=%d", repoFullname, perPage, page)
+
+	client.headers.Set("Accept", "application/vnd.github.star+json")
+	defer client.headers.Set("Accept", "application/vnd.github+json")
+
+	resp, err := client.fetch(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var stars []Star
+	err = json.Unmarshal(resp.Body, &stars)
+
+	if err != nil {
+		print(string(resp.Body))
+		return nil, err
+	}
+
+	return stars, nil
+}
+
+func (client *Client) FetchAllCommitsForRepo(repoFullname string) ([]Commit, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/commits", repoFullname)
+	resp, err := client.fetch(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var commits []Commit
+	err = json.Unmarshal(resp.Body, &commits)
+
+	if err != nil {
+		print(string(resp.Body))
+		return nil, err
+	}
+
+	return commits, nil
 }

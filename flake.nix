@@ -24,7 +24,13 @@
             packages.repos = callPackage ./nix/repos.nix {
                 inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
             };
+            packages.sample = callPackage ./nix/sample.nix {
+                inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+            };
             packages.comments = callPackage ./nix/comments.nix {
+                inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+            };
+            packages.history = callPackage ./nix/history.nix {
                 inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
             };
             devShells.default = callPackage ./nix/shell.nix {

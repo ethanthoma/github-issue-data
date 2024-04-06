@@ -12,6 +12,10 @@ import (
 func main() {
 	token := os.Getenv("GITHUB_TOKEN")
 
+	if token == "" {
+		fmt.Println("Please set the GITHUB_TOKEN environment variable.")
+	}
+
 	client := github.NewClient(token)
 
 	repos, err := getRepos(client)

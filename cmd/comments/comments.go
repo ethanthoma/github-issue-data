@@ -3,9 +3,7 @@ package main
 import (
 	"encoding/csv"
 	"fmt"
-	"math/rand/v2"
 	"os"
-	"sort"
 	"strconv"
 	"time"
 
@@ -14,40 +12,43 @@ import (
 )
 
 type CommentData struct {
-	IssueID   int
-	CommentID int
-	AuthorID  int
-	Author    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Text      string
-	Type      string
+	RepoId    int    `json:"repo_id"`
+	IssueID   int    `json:"issue_id"`
+	CommentID int    `json:"comment_id"`
+	AuthorID  int    `json:"author_id"`
+	Author    string `json:"author"`
+	Interval  int    `json:"interval"`
+	Text      string `json:"text"`
+	Type      string `json:"type"`
 }
 
 func main() {
 	token := os.Getenv("GITHUB_TOKEN")
 
+	if token == "" {
+		fmt.Println("Please set the GITHUB_TOKEN environment variable.")
+	}
+
 	client := github.NewClient(token)
 
-	reposFilepath := "data/repos.csv"
+	sampleFilePath := "data/sample.csv"
 
-	comments, err := getComments(client, reposFilepath, 500, 13_611, rand.NewPCG(420, 69))
+	comments, err := getComments(client, sampleFilePath)
 	if err != nil {
 		fmt.Println("Error on getting comments.\n[ERROR] -", err)
+		fmt.Print(client.RequestCount)
 	}
 
 	if comments != nil {
 		fmt.Println("Number of comments:", len(*comments))
-		github.SaveToCSV(comments, "data/comments-"+fmt.Sprint(len(*comments))+".csv")
+		github.SaveToCSV(comments, "data/comments.csv")
 	}
 }
 
-func getComments(client *github.Client, reposFilepath string, sampleSize int, populationSize int, seed *rand.PCG) (*[]CommentData, error) {
+func getComments(client *github.Client, sampleFilePath string) (*[]CommentData, error) {
 	dataset := []CommentData{}
 
-	indices := *getIndices(sampleSize, populationSize, seed)
-
-	file, err := os.Open(reposFilepath)
+	file, err := os.Open(sampleFilePath)
 	if err != nil {
 		fmt.Println("Error opening CSV file:", err)
 		return nil, err
@@ -55,83 +56,47 @@ func getComments(client *github.Client, reposFilepath string, sampleSize int, po
 	defer file.Close()
 
 	reader := csv.NewReader(file)
-
-	header, err := reader.Read()
+	allRecords, err := reader.ReadAll()
 	if err != nil {
-		fmt.Println("Error reading CSV header:", err)
 		return nil, err
 	}
 
+	header := allRecords[0]
 	columnIndex := make(map[string]int)
 	for i, columnName := range header {
 		columnIndex[columnName] = i
 	}
 
-	lines := 0
-	for i, index := range indices {
+	allRecords = allRecords[1:]
+
+	for i, record := range allRecords {
 		parsedComments := len(dataset)
-		for ; ; lines++ {
-			record, err := reader.Read()
-			if err != nil {
-				fmt.Println("EOF: ", err)
-				break
-			}
 
-			if index < lines {
-				continue
+		repo := github.Repo{}
+		for columnName, index := range columnIndex {
+			switch columnName {
+			case "id":
+				repo.ID, _ = strconv.Atoi(record[index])
+			case "name":
+				repo.Name = record[index]
+			case "full_name":
+				repo.FullName = record[index]
+			case "stargazers_count":
+				repo.Stars, _ = strconv.Atoi(record[index])
 			}
-
-			repo := github.Repo{}
-			for columnName, index := range columnIndex {
-				switch columnName {
-				case "id":
-					repo.ID, _ = strconv.Atoi(record[index])
-				case "name":
-					repo.Name = record[index]
-				case "full_name":
-					repo.FullName = record[index]
-				case "stargazers_count":
-					repo.Stars, _ = strconv.Atoi(record[index])
-				}
-			}
-
-			issues, err := filterIssues(client, &repo)
-			if err != nil {
-				fmt.Println("Failed to fetch issues for", repo.FullName, ":", err)
-				return &dataset, err
-			}
-
-			dataset = append(dataset, (*issues)...)
-			break
 		}
 
-		fmt.Println("Repos parsed:", i+1, "/", sampleSize, "| Comments parsed:", len(dataset)-parsedComments)
+		issues, err := filterIssues(client, &repo)
+		if err != nil {
+			fmt.Println("Failed to fetch issues for", repo.FullName, ":", err)
+			return &dataset, err
+		}
+
+		dataset = append(dataset, (*issues)...)
+		fmt.Println("Repos parsed:", i+1, "/", len(allRecords), "| Comments parsed:", len(dataset)-parsedComments)
 	}
 
 	return &dataset, nil
-}
-
-func getIndices(sampleSize int, populationSize int, seed *rand.PCG) *[]int {
-	random := rand.New(seed)
-
-	indices := make([]int, sampleSize)
-	generated := map[int]bool{}
-
-	count := 0
-	for count < sampleSize {
-		index := random.IntN(populationSize)
-		if !generated[index] {
-			indices[count] = index
-			generated[index] = true
-			count++
-		}
-	}
-
-	sort.Slice(indices, func(i, j int) bool {
-		return indices[i] < indices[j]
-	})
-
-	return &indices
 }
 
 func filterIssues(client *github.Client, repo *github.Repo) (*[]CommentData, error) {
@@ -156,8 +121,7 @@ func filterIssues(client *github.Client, repo *github.Repo) (*[]CommentData, err
 		}
 
 		for _, issue := range issues {
-			year := issue.CreatedAt.Year()
-			if year >= 2016 && year <= 2019 && issue.PullRequest == nil {
+			if filterIssue(&issue) {
 				comments, err := convertIssueToComments(client, repo, &issue)
 				if err != nil {
 					return nil, err
@@ -170,6 +134,11 @@ func filterIssues(client *github.Client, repo *github.Repo) (*[]CommentData, err
 	return &data, nil
 }
 
+func filterIssue(issue *github.Issue) bool {
+	year := issue.CreatedAt.Year()
+	return year > 2016 && year < 2020 && issue.PullRequest == nil && issue.State == "closed"
+}
+
 func convertIssueToComments(client *github.Client, repo *github.Repo, issue *github.Issue) (*[]CommentData, error) {
 	data := []CommentData{}
 
@@ -179,27 +148,30 @@ func convertIssueToComments(client *github.Client, repo *github.Repo, issue *git
 		return nil, err
 	}
 
+	interval := dateToInterval(issue.CreatedAt)
+
 	data = append(data, CommentData{
+		RepoId:    repo.ID,
 		IssueID:   issue.ID,
 		CommentID: -1,
 		AuthorID:  issue.User.ID,
 		Author:    issue.User.Login,
-		CreatedAt: issue.CreatedAt,
-		UpdatedAt: issue.UpdatedAt,
+		Interval:  interval,
 		Text:      issue.Title + " " + issue.Body,
 		Type:      issue.Type,
 	})
 
 	for _, comment := range comments {
 		year := comment.CreatedAt.Year()
-		if year >= 2016 && year <= 2019 {
+		if year > 2016 && year < 2020 {
+			interval := dateToInterval(comment.CreatedAt)
 			data = append(data, CommentData{
+				RepoId:    repo.ID,
 				IssueID:   issue.ID,
 				CommentID: comment.ID,
 				AuthorID:  comment.User.ID,
 				Author:    comment.User.Login,
-				CreatedAt: comment.CreatedAt,
-				UpdatedAt: comment.UpdatedAt,
+				Interval:  interval,
 				Text:      comment.Body,
 				Type:      comment.Type,
 			})
@@ -207,4 +179,10 @@ func convertIssueToComments(client *github.Client, repo *github.Repo, issue *git
 	}
 
 	return &data, nil
+}
+
+func dateToInterval(date time.Time) int {
+	startOfYear := time.Date(2017, time.January, 1, 0, 0, 0, 0, time.UTC)
+	weeks := int(date.Sub(startOfYear).Hours()/24/7) + 1
+	return weeks
 }

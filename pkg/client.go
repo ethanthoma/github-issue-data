@@ -9,13 +9,14 @@ import (
 )
 
 type Client struct {
-	httpClient *http.Client
-	headers    http.Header
-	limiter    *rate.Limiter
+	httpClient   *http.Client
+	headers      http.Header
+	limiter      *rate.Limiter
+	RequestCount int
 }
 
 func NewClient(token string) *Client {
-	limiter := rate.NewLimiter(rate.Limit(5000./(60.*60.)+0.01), 1)
+	limiter := rate.NewLimiter(rate.Limit((5000./(60.*60.))-0.1), 1)
 
 	return &Client{
 		httpClient: &http.Client{},
@@ -40,6 +41,7 @@ func (client *Client) fetch(url string) (*Response, error) {
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
+	client.RequestCount++
 	if err != nil {
 		fmt.Println("Error on request.\n[ERROR] -", err)
 		return nil, err
