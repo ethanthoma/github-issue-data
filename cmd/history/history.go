@@ -42,8 +42,8 @@ func main() {
 	}
 
 	if repoHistory != nil {
-		fmt.Println("Number of data fetched:", len(*repoHistory))
-		github.SaveToCSV(repoHistory, "data/repoHistory-"+fmt.Sprint(len(*repoHistory))+".csv")
+		fmt.Println("Number of records fetched:", len(*repoHistory))
+		github.SaveToCSV(repoHistory, "data/commits.csv")
 	}
 }
 
