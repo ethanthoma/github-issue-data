@@ -3,9 +3,10 @@ package github
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
-	issuequery "github.com/ethanthoma/github-issue-data/pkg/issue"
-	"github.com/ethanthoma/github-issue-data/pkg/repos"
+	issuequery "github-issue-data/pkg/issue"
+	"github-issue-data/pkg/repos"
 )
 
 func (client *Client) FetchRepos(fetchReposParams *repos.FetchReposParams) ([]Repo, int, bool, error) {
@@ -80,30 +81,15 @@ func (client Client) FetchCommentsForIssue(repoFullname string, issueNumber int)
 	return comments, nil
 }
 
-func (client *Client) FetchStarsForRepo(repoFullname string, perPage, page int) ([]Star, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/stargazers?per_page=%d&page=%d", repoFullname, perPage, page)
-
-	client.headers.Set("Accept", "application/vnd.github.star+json")
-	defer client.headers.Set("Accept", "application/vnd.github+json")
-
-	resp, err := client.fetch(url)
-	if err != nil {
-		return nil, err
-	}
-
-	var stars []Star
-	err = json.Unmarshal(resp.Body, &stars)
-
-	if err != nil {
-		print(string(resp.Body))
-		return nil, err
-	}
-
-	return stars, nil
-}
-
-func (client *Client) FetchAllCommitsForRepo(repoFullname string) ([]Commit, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/commits", repoFullname)
+func (client *Client) FetchAllCommitsForRepo(repoFullname string, since time.Time, until time.Time, perPage, page int) ([]Commit, error) {
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/commits?since=%s&until=%sper_page=%d&page=%d",
+		repoFullname,
+		since.Format("2006-01-02T15:04:05Z"),
+		until.Format("2006-01-02T15:04:05Z"),
+		perPage,
+		page,
+	)
 	resp, err := client.fetch(url)
 	if err != nil {
 		return nil, err

@@ -7,12 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethanthoma/github-issue-data/pkg"
+	"github-issue-data/pkg"
 )
 
 type RepoHistory struct {
 	RepoID   int `json:"repo_id"`
-	Stars    int `json:"stars"`
 	Commits  int `json:"commits"`
 	Interval int `json:"interval"`
 }
@@ -32,6 +31,8 @@ func main() {
 		fmt.Println("Error fetching repos.")
 		panic(err)
 	}
+
+	fmt.Println("Loaded sample repos.")
 
 	repoHistory, err := getRepoHistory(client, repos)
 
@@ -72,8 +73,11 @@ func readRepos(filepath string) (*[]github.Repo, error) {
 	for {
 		record, err := reader.Read()
 		if err != nil {
-			fmt.Println("EOF: ", err)
-			break
+			if err.Error() == "EOF" {
+				break
+			}
+			fmt.Println("Error reading record from CSV:", err)
+			return nil, err
 		}
 
 		repo := github.Repo{}
@@ -99,45 +103,34 @@ func readRepos(filepath string) (*[]github.Repo, error) {
 func getRepoHistory(client *github.Client, repos *[]github.Repo) (*[]RepoHistory, error) {
 	dataset := []RepoHistory{}
 
-	for _, repo := range *repos {
+	since := time.Date(2016, 01, 01, 0, 0, 0, 0, time.UTC)
+	until := time.Date(2019, 12, 31, 23, 59, 59, 9999, time.UTC)
+
+	addedRecords := 0
+	for i, repo := range *repos {
+		addedRecords = len(dataset)
 		per_page := 100
 
-		for page := 1; ; page++ {
-			stars, err := client.FetchStarsForRepo(repo.FullName, per_page, page)
-			if err != nil {
-				fmt.Println("Error on fetching star history for repo:", repo.FullName)
-				return nil, err
-			}
+		intervalData := make(map[int]*RepoHistory)
 
-			commits, err := client.FetchAllCommitsForRepo(repo.FullName)
+		for page := 1; ; page++ {
+			commits, err := client.FetchAllCommitsForRepo(repo.FullName, since, until, per_page, page)
 			if err != nil {
 				fmt.Printf("Error fetching commits for repo %s: %v\n", repo.FullName, err)
 				return nil, err
 			}
 
-			if len(stars)+len(commits) == 0 {
+			if len(commits) == 0 {
 				break
 			}
 
-			intervalData := make(map[int]*RepoHistory)
-
-			for _, star := range stars {
-				if star.StarredAt.Year() > 2016 && star.StarredAt.Year() < 2020 {
-					continue
-				}
-
-				interval := dateToInterval(star.StarredAt)
-				if _, ok := intervalData[interval]; !ok {
-					intervalData[interval] = &RepoHistory{RepoID: repo.ID, Interval: interval}
-				}
-				intervalData[interval].Stars++
-			}
-
 			for _, commit := range commits {
-				// choose the earlier of the two dates to determine the commit's interval
-				commitDate := commit.Commit.Author.Date
-				if commitDate.After(commit.Commit.Commiter.Date) {
+				var commitDate time.Time
+
+				if commit.Commit.Author.Date.Year() == 0 {
 					commitDate = commit.Commit.Commiter.Date
+				} else {
+					commitDate = commit.Commit.Author.Date
 				}
 
 				interval := dateToInterval(commitDate)
@@ -146,11 +139,13 @@ func getRepoHistory(client *github.Client, repos *[]github.Repo) (*[]RepoHistory
 				}
 				intervalData[interval].Commits++
 			}
-
-			for _, data := range intervalData {
-				dataset = append(dataset, *data)
-			}
 		}
+
+		for _, data := range intervalData {
+			dataset = append(dataset, *data)
+		}
+
+		fmt.Println("Repos parsed:", i+1, "/", len(*repos), "| Records added:", len(dataset)-addedRecords)
 	}
 
 	return &dataset, nil

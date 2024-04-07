@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethanthoma/github-issue-data/pkg"
-	issuesquery "github.com/ethanthoma/github-issue-data/pkg/issue"
+	"github-issue-data/pkg"
+	issuesquery "github-issue-data/pkg/issue"
 )
 
 type CommentData struct {

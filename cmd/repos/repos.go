@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/ethanthoma/github-issue-data/pkg"
-	"github.com/ethanthoma/github-issue-data/pkg/repos"
+	"github-issue-data/pkg"
+	"github-issue-data/pkg/repos"
 )
 
 func main() {
