@@ -2,11 +2,11 @@
 
 ## Done
 - fetching filtered repos (13,611)
-- sampling repos (500)
-- fetch issues and comments (116,002)
+- sampling repos (100)
+- fetch issues and comments (16,650)
 - fixed running from nix
-- fetch stars over time
-- fetch commits over time
+- fetch stars over time (7,524)
+- fetch commits over time (3,378)
 - create datasets from collected data
 
 ## Install + Run
@@ -16,7 +16,7 @@ You must first fetch the repos:
 - `nix run .#repos` to fetch all repos that pass the filter into `./data/repos.csv`.
 
 And sample:
-- `nix run .#sample` to randomly sample 500 repos into `./data/sample.csv`
+- `nix run .#sample` to randomly sample 100 repos into `./data/sample.csv`
 
 Then you can run these:
 - `nix run .#comments` to fetch all the comments from sampled repos into `./data/comments.csv`.

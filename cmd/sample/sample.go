@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-const SAMPLE_SIZE = 500
+const SAMPLE_SIZE = 100
 
 func main() {
 	reposFilepath := "data/repos.csv"
@@ -16,7 +16,7 @@ func main() {
 }
 
 func randomSample(reposFilepath string, sampleSize int, outputFile string) error {
-	pcg := rand.NewPCG(420, 69)
+	pcg := rand.NewPCG(123, 420)
 
 	file, err := os.Open(reposFilepath)
 	if err != nil {
@@ -71,7 +71,7 @@ func getIndices(sampleSize int, populationSize int, seed *rand.PCG) *[]int {
 
 	count := 0
 	for count < sampleSize {
-		index := random.IntN(populationSize)
+		index := random.IntN(populationSize - 1)
 		if !generated[index] {
 			indices[count] = index
 			generated[index] = true
