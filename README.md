@@ -3,7 +3,7 @@
 ## Done
 - fetching filtered repos (13,611)
 - sampling repos (100)
-- fetch issues and comments (16,650)
+- fetch issues and comments (136,650)
 - fixed running from nix
 - fetch stars over time (7,524)
 - fetch commits over time (3,378)

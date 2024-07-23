@@ -17,13 +17,14 @@ func SaveToCSV(data interface{}, filename string) error {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Ensure we're dealing with a slice.
+	writer.Comma = ','
+	writer.UseCRLF = false
+
 	v := reflect.ValueOf(data)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Slice {
 		return fmt.Errorf("data must be a pointer to a slice")
 	}
 
-	// Get the slice and ensure it's not empty.
 	slice := v.Elem()
 	if slice.Len() == 0 {
 		return fmt.Errorf("slice is empty")
@@ -41,6 +42,7 @@ func SaveToCSV(data interface{}, filename string) error {
 	for i := 0; i < slice.Len(); i++ {
 		elem := slice.Index(i).Interface()
 		row, err := structToStringSlice(elem)
+
 		if err != nil {
 			return err
 		}
@@ -52,7 +54,6 @@ func SaveToCSV(data interface{}, filename string) error {
 	return nil
 }
 
-// structToStringSlice converts struct fields to string slice.
 func structToStringSlice(data interface{}) ([]string, error) {
 	v := reflect.ValueOf(data)
 	if v.Kind() != reflect.Struct {
@@ -67,7 +68,6 @@ func structToStringSlice(data interface{}) ([]string, error) {
 	return row, nil
 }
 
-// structTagsToSlice extracts JSON tags from struct fields.
 func structTagsToSlice(data interface{}) ([]string, error) {
 	t := reflect.TypeOf(data)
 	if t.Kind() != reflect.Struct {

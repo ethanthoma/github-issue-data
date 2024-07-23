@@ -12,14 +12,14 @@ import (
 )
 
 type CommentData struct {
-	RepoId    int    `json:"repo_id"`
-	IssueID   int    `json:"issue_id"`
-	CommentID int    `json:"comment_id"`
-	AuthorID  int    `json:"author_id"`
-	Author    string `json:"author"`
-	Interval  int    `json:"interval"`
-	Text      string `json:"text"`
-	Type      string `json:"type"`
+	RepoId      int    `json:"repo_id"`
+	IssueNumber int    `json:"issue_number"`
+	CommentID   int    `json:"comment_id"`
+	AuthorID    int    `json:"author_id"`
+	Author      string `json:"author"`
+	Interval    int    `json:"interval"`
+	Text        string `json:"text"`
+	Type        string `json:"type"`
 }
 
 func main() {
@@ -151,14 +151,14 @@ func convertIssueToComments(client *github.Client, repo *github.Repo, issue *git
 	interval := dateToInterval(issue.CreatedAt)
 
 	data = append(data, CommentData{
-		RepoId:    repo.ID,
-		IssueID:   issue.ID,
-		CommentID: -1,
-		AuthorID:  issue.User.ID,
-		Author:    issue.User.Login,
-		Interval:  interval,
-		Text:      issue.Title + " " + issue.Body,
-		Type:      issue.Type,
+		RepoId:      repo.ID,
+		IssueNumber: issue.Number,
+		CommentID:   -1,
+		AuthorID:    issue.User.ID,
+		Author:      issue.User.Login,
+		Interval:    interval,
+		Text:        issue.Title + " " + issue.Body,
+		Type:        issue.Type,
 	})
 
 	for _, comment := range comments {
@@ -166,14 +166,14 @@ func convertIssueToComments(client *github.Client, repo *github.Repo, issue *git
 		if year > 2016 && year < 2020 {
 			interval := dateToInterval(comment.CreatedAt)
 			data = append(data, CommentData{
-				RepoId:    repo.ID,
-				IssueID:   issue.ID,
-				CommentID: comment.ID,
-				AuthorID:  comment.User.ID,
-				Author:    comment.User.Login,
-				Interval:  interval,
-				Text:      comment.Body,
-				Type:      comment.Type,
+				RepoId:      repo.ID,
+				IssueNumber: issue.Number,
+				CommentID:   comment.ID,
+				AuthorID:    comment.User.ID,
+				Author:      comment.User.Login,
+				Interval:    interval,
+				Text:        comment.Body,
+				Type:        comment.Type,
 			})
 		}
 	}
